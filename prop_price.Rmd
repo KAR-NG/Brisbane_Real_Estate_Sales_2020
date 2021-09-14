@@ -1,0 +1,1018 @@
+---
+title: "What is the best property for a young Brisbane Family?"
+author: "Kar Ng"
+date: "6/26/2021"
+output: 
+  html_document:
+    code_folding: hide
+    df_print: paged
+    toc: true
+    toc_float: true
+  pdf_document: default
+---
+
+***
+
+![](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\pic1.png)
+
+***
+
+
+```{r echo=FALSE}
+bytes <- file.size("prop_price.Rmd")
+words <- bytes/10
+minutes <- words/200
+```
+
+Reading time: `r round(minutes)` minutes
+
+## 1 SUMMARY
+
+This is a personal project built for skills demonstration purposes. The goal of this project is to help a young Brisbane family to buy a property. The parent have a total annual income of AUD 80k to 100k. They have a kid, 2 pets, and are working near St Lucia, it is a suburb near city central in Brisbane. They said they are intending to buy a house in the September of 2020.
+
+This project was created by R Markdown using R in RStudio. The data set used in this project was a Brisbane Real estate sales public data set between 2018 to 2020, downloaded from *Kaggle*. SQL was used during data cleaning (to demonstrate the skill). To achieve the goal, 6 graphs and 4 interactive maps were created in this project. There are 3 type of properties in the data set to suggest to the family, include house, townhouse and unit. There are also information about how many rooms a property had when it was sold. 
+
+Results reveal that the demand of properties has been noticably affected by Covid-19 and is declining sharply in July 2020 across different property types. The family should look for one now as there would be less competitors in the market. The price of a property generally increases with increasing number of rooms (20% - 40% increment for addition of each room). In general, price of a house will be higher if it is close to Brisbane CBD. The best option for the family is to start putting efforts and look for affordable 3-room houses. Although I am also recommanding a 3-room townhouse which is $120k cheaper than a 3-room house on average, however there were not many options availabe based on the data in the last few years. A standard 3-room house generally costs about AUD 650k and a similar townhouse may be AUD 500k. If a 3-room house is selected, it will be more ideal as the family would have rooms for kids, guests, and more spaces in the yard for their pets. The best locations to hunt for a 3-room house based on the conditions of the family are Kenmore, Jindalee, Oxley, Moorooka, and Salisbury. If the family do not mind just a little more commuting time to their workplace, they should look at properties in Inala and Forest Lake. These locations would also have many great options.  
+
+
+(Highlights)
+
+![](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\pic5.png)
+
+## 2 R PACKAGES
+R packages loaded in this project include 
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(htmltools)
+library(DT)
+library(lubridate)
+library(kableExtra)
+library(skimr)
+library(leaflet)
+library(mapview)
+library(rgdal)
+library(ggrepel)
+library(snakecase)
+library(treemapify)
+
+```
+
+## 3 SCENARIO
+
+The purpose of this project is to find the type of house that is suitable for a young Brisbane family. The family have a total income of 80 thousands to 100 thousands dollars a year, and they have a kid. This a 3 person family.  They prefer a house that is pet-friendly as they have a cat and a dog. They hope to have 1 extra room for guests. Their parents love their grandchild a lot and wishing to visit frequently. They are first home buyer and are working near a Brisbane suburb - **Saint Lucia**. They are intending to buy a house in the September of 2020.
+
+
+![](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\pic9.JPG)
+
+From the introduction, I can see that the family would want a 3-room property and perhaps a yard as outdoor spaces for their pets.  
+
+To aid the family, I will first provide general information about the trend of Brisbane property prices in the most recent years. I will then explore the prices of different types of properties, and drawing a closer look at adjacent suburbs and the number of rooms. To aid my exploration, I have several important questions to ask myself, include:
+
+* How is the trend and should the family wait?
+* What is the average prices of different properties in Australia?
+* How are the prices differ among regions in Brisbane?
+* How are the number of bedrooms affect the prices in Brisbane?
+* What are the optimum suburbs for them to buy a property and come out with a list showing the best type of houses and locations they should consider. 
+
+
+## 4 DATA PREPARATION
+
+Data set used in this personal project is a public data set downloaded from *Kaggle*, uploaded by HtAG Holdings and Alex Fedoseev. *Kaggle* is a professional platform for data science community. HtAG Holdings is a web portal provides actionable market information for real estate professional. Click this [link](https://www.kaggle.com/htagholdings/aus-real-estate-sales-march-2019-to-april-2020) to the relevant Kaggle webpage. This data set was used to analyse the impact of COVID-19 on property market on May 4, 2020.
+
+The data has a size of 35.87 MB and was downloaed as a csv file. 
+
+### 4.1 Data upload
+
+This section uploads the data set into R. Following is the first 10 thousand rows of the data set. 
+
+```{r, message=FALSE, warning=FALSE}
+
+prop.price <- read_csv("aus-property-sales-sep2018-april2020.csv")
+prop.price
+
+```
+
+### 4.2 Data description
+
+This table is built base on the original information given on the *kaggle* website.
+
+```{r, message=FALSE, warning=FALSE}
+
+Variable <- c("date_sold", "price", "suburb", "city_name", "state", "lat", "lon", "bedrooms", "property_type", "loc_pid", "lga_pid")
+
+Description <- c("Date of sales",
+                 "Price for which the property was sold for. Null if unknown.",
+                 "Suburb of sale",
+                 "Name of the Australia city", 
+                 "State", 
+                 "Latitude", 
+                 "Longitude",
+                 "Number of bedrooms",
+                 "Type of property i.e. house, unit, townhouse",
+                 "ID of the locality (suburb)",
+                 "ID of the LGA (council area)")
+
+data.frame(Variable, Description) %>% 
+  kbl() %>% 
+  kable_styling(bootstrap_options = c("hover", "bordered", "striped"))  
+
+
+```
+
+### 4.3 Data exploration
+
+This data set has 320,334 rows of observation and 11 columns of variables. Among variables, there are character, numeric and date types. 
+
+* For character variables, there are price, suburb, city_name, state, property_type, loc_pid, and lga_pid.
+* For numeric variables, there are lat, lon and bedrooms.
+* The variable "date_sold" has the proper format of *date*. 
+
+***
+```{r}
+skim_without_charts(prop.price)
+```
+
+
+***
+
+Insights from this table:
+
+* All variables have **complete_rate** of 1 (100%), which is associated to the adjacent column **n_missing**. **n_missing** is a column used to detect missing values in each variables. There are some missing data in the "lat" and "lon" columns but the amounts are negligible.   
+* This data set was collected between 2018-09-02 and 2020-07-16. The first strike of Covid-19 in Australia was on 25 January 2020, according to the [website of Department of Health](https://www.health.gov.au/ministers/the-hon-greg-hunt-mp/media/first-confirmed-case-of-novel-coronavirus-in-australia). It may impact house prices and demands.    
+* One problem found, the column **price** should be categorised as numeric variable instead of being a character.   
+
+I closer looked and found that there are missing values in the **price** column, however they have been labeled as "NULL" making them undetectable. It will be a cleaning task during cleaning stage.  
+
+Following is another way of glimpsing the data. This method lists out all variables in the data set, along with their current type, and their first few observations. I can see **NULL** appears on the **price** column, which will need to be removed during data cleaning, so that R can recognise **price** as a numeric vector.
+
+```{r}
+glimpse(prop.price)
+
+```
+
+In R,
+
+* "dttm" stands for "date-time"
+* "chr" stands for "character"
+* "dbl" stands for "double" which is used for numbers that has decimal places
+
+I will convert some of the variables to other types during data cleaning, such as:
+
+* ”fctr“ stands for "factors". It is usually used for string data that can be used to group data into subset during analysis.
+* "date", which used to carry year-month-day.
+
+
+## 6 DATA CLEANING AND MANIPULATION
+
+In this section, I am applying **SQL** for my preliminary cleaning to demonstrate my ability in that programming language and the platform **BigQuery**. I will then upload the cleaned data set back into R for further manipulation.
+
+### 6.1 SQL data exploration 
+
+On the BigQuery database, I create a data set folder and store the property price data set as a table under that data set folder. I then use some of the BigQuery features to examine the data set such as SCHEMA, DETAILS and PREVIEW. 
+
+During my data exploration and cleaning using SQL, I found that:
+
+* 1. The column **city** was perfect, no error identified 
+
+* 2. The column **suburb** was perfect, no error identified
+
+* 3. The column **property_type** was perfect, no error identified
+
+* 4. The column **state**  was perfect, no error identified 
+
+* 5. The column **bedrooms**   was near perfect, identified 0.07% of rows have 0 rooms, which would be impossible for any houses to have no room. I will remove them as they only contribute 0.07% to the data set.
+
+* 6. The column **price** has 19.5% of rows have "NULL", which means "unknown". A usual technique is to replace it with mean or median after examining data distribution, however I will drop it as I am not confidently enough that this method works perfectly for real estate industry and may affect the result of my analysis. 
+
+* 7. The column **loc_pid**  is perfect, no error identified.
+
+* 8. The column **lga_pid** is perfect, no error identified.
+
+
+![Step 1 to 6](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\SQL1.JPG)
+
+![Step 7 to 8](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\SQL2.JPG)
+
+
+### 6.2 SQL data cleaning 
+
+I am using SQL to remove the rows that has price with **NULL** and **Zero** bed room numbers.
+
+After the cleaning query, 19.6% rows of data have been removed, there are still 80.4% of data remain in the data set, which is 257,684 rows of data.  
+
+![](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\SQL3.JPG)
+
+I download this data sheet from the **BigQuery** into the relevant R project folder in my computer and reuploading back to R in next section. 
+
+### 6.3 SQL data re-uploading to R
+
+After data cleaning using SQL, now I upload this cleaned data set again into R. 
+
+Click the right button to show the code, and following table indicates that the data import has been successful. 
+
+```{r, message=FALSE, warning=FALSE}
+
+prop.price2 <- read_csv("aus-property-sales_SQL_Cleaned.csv")
+prop.price2
+
+```
+
+Checking the data set and yes, 257,684 rows of observations and 11 columns have been uploaded to R.
+
+* Wonderful news is that the price has now been identified as **numeric** data type because the word "NULL" appeared in the price column have all been removed. The price column is now readied to be used as a responding variable for my analysis.
+
+***
+
+```{r}
+skim_without_charts(prop.price2)
+
+```
+
+***
+
+
+### 6.4 R - changing data type
+
+**Converting the date**
+
+The date column is imported as character, however, it should be in the date or date-time format. Following code complete the conversion (click right.) 
+
+```{r}
+prop.price2 <- prop.price2 %>% 
+  mutate(date_sold = as.POSIXct(date_sold))
+
+```
+
+**Converting "bedrooms" into factor type**
+
+The column "bedrooms" records the number of bed rooms a house has, though it is right to be recognised as a numerical variable. Optionally, I am converting it into factor type so that I can use it to group the data in later analysis sections. 
+
+Code in the right allowing this conversion.
+
+```{r}
+prop.price2 <- prop.price2 %>% 
+  mutate(bedrooms = factor(bedrooms))
+
+```
+
+**Converting character variable into factor**
+
+Not all character variable needs to be converted into factor. However, it is the case in this scenario so that I can use them for grouping the data during analysis. Changing them into factor type also allows me to look at their levels (elements) within them using R functions, for example, *summary()*. Another benefit is that R can run faster if data are stored as factor.   
+
+```{r}
+prop.price2 <- prop.price2 %>%  
+  mutate_if(is.character, factor)
+  
+```
+
+
+**Final check**
+
+In this final check, all variables are in the data type I reviewed and selected.
+
+```{r}
+glimpse(prop.price2)
+
+```
+
+Following is the summary of the data set. I can see the sample size of each level in each variables, as well as seeing the maximum price of a property can be 100 million dollars, and the minimum price of a property can be 1000 dollars! It makes me wonder is there an error needs to fixed. 
+
+I also see that the data set has also sales data for other state other than Queensland, where Brisbane city is. Since the information from other state is irrelevant to the purpose of this project, they will be removed in the section 6.6. 
+
+```{r}
+summary(prop.price2)
+```
+
+### 6.5 R - Removing outlier
+
+Following graphs show that the 100000000 is an outlier and will affect my analysis for the purpose of this project. The family in the scenario has also an income that can't afford a 100 million dollars, it should justify the removal of this data point.   
+
+```{r}
+ggplot(prop.price2, aes(x = "", y = price)) +
+  geom_jitter(size = 3, alpha = 0.5)
+
+```
+
+**Removing the outlier** using following code (click right button).
+
+```{r}
+prop.price2 <- prop.price2 %>% 
+  filter(price < 25000000)
+
+```
+
+Plotting the plot again. Yup, the point has been removed. 
+
+```{r}
+ggplot(prop.price2, aes(x = "", y = price)) +
+  geom_jitter(size = 3, alpha = 0.5)
+
+```
+
+### 6.6 R - Data filtering
+
+This project focuses on the real estate sales of Brisbane. The data set has the sales of other cities in other states, include: 
+
+```{r}
+levels(prop.price2$city_name)
+
+```
+
+This section will remove other cities from the data set to leave only Brisbane data. The size of the data set will become smaller and speed up the entire analysis workflow. Following code complete the job (click the right button).
+
+```{r}
+bris.prop <- prop.price2 %>% 
+  filter(city_name == "Brisbane") %>% 
+  select(-city_name, -state) %>%      # Remove variables city_name and state, since they are redundant now
+  arrange(date_sold)
+
+```
+
+Nearly 90% of irrelevant data (other cities in other states) has been removed and left only with 10% of Brisbane data.
+
+Although the objective of this project is to focus on the real estate sales of 2020, but I will leave the sales of other years in the data set to allow analysis of different trends over the last few years. Therefore, this data set has Brisbane sales data of: 
+
+```{r}
+years <-  bris.prop %>% 
+  mutate(year = factor(year(date_sold)))
+levels(years$year)  
+
+```
+
+### 6.7 R - Import and Manipulate shape file
+
+There are longitude and latitude data in the data set allowing me to draw map during visualisation. However, these points are point information scattering on the map, I want to draw polygons on the map to show the boundaries of each suburbs of Brisbane, which cannot be performed by these pointed information. For this to happen, I will need a shape file that contains the boundaries information of Brisbane suburbs in a shape file format. 
+
+I searched on the internet and obtained a shapefile containing Queensland suburb information through [Australia government website](https://data.gov.au/dataset/ds-dga-6bedcb55-1b1f-457b-b092-58e88952e9f0/details?q=), and imported into R. 
+
+Shape file imported.
+```{r, warning=FALSE, message=FALSE}
+# Upload shape file of Queensland suburb boundary
+myshape <- readOGR("QLD_LOCALITY_POLYGON_shp/QLD_LOCALITY_POLYGON_shp.shp")
+
+```
+
+
+The file contains boundary information of all suburbs in Queensland, however I only need Brisbane ones. Following codes filter out the redundant suburbs (non-Brisbane) and left only with suburbs in Brisbane (according to the data set I used in this project). 
+
+```{r}
+# Changing the case format of the levels of the column that store the suburb names in my data set to match the naming format in shape file, as first step to combine both together. 
+
+bris.prop <- bris.prop %>% 
+  mutate(suburb = toupper(suburb))
+
+# Checking is all suburbs in Brisbane match the suburb names in the shape file. Conclusion: Yes.
+
+a <- is.element(bris.prop$suburb, myshape$QLD_LOCA_2)
+a <- factor(a)
+# levels(a) <- use this code to check if only "TRUE" remains.
+
+# Reduce the shape file to leave only suburbs that matches the suburbs in the my data set.
+# After combination, the shape file (myshape2) has been reduced from 3298 elements to 175 elements that contains only Brisbane suburb.
+
+myshape2 <- subset(myshape, is.element(myshape$QLD_LOCA_2, bris.prop$suburb))
+
+```
+
+The shape file will look like below (A snapshot taken from later section to aid your understanding.) 
+
+
+![](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\pic10.JPG)
+
+
+
+Looking good, I will use this manipulated shape file object (*myshape*) during my mapping in later section. I can see that there are no sales data in a few Brisbane region but not too many, it should be fine. 
+
+
+
+## 7 EXPLORATORY DATA ANALYSIS (EDA)
+
+### 7.1 Sales of Real Estate (Count) after Covid-19 strikes
+
+Following graph summarises the overall sales of properties (count) in Brisbane from September 2018 to July 2020.
+
+```{r, message=FALSE, warning=FALSE, fig.height= 8, fig.width=12}
+
+# set up df
+
+df7.1 <- bris.prop %>% 
+  mutate(YearMonth = format(date_sold, "%Y-%m")) %>% 
+  relocate(YearMonth, .after = date_sold) %>% 
+  group_by(YearMonth, property_type, bedrooms) %>% 
+  summarise(count = n()) %>% 
+  mutate(property_type = fct_recode(property_type,
+                                    "House" = "house",
+                                    "Townhouse" = "townhouse",
+                                    "Unit" = "unit")) %>% 
+  arrange(YearMonth)
+
+# plot
+
+ggplot(df7.1, aes(x = YearMonth, y = count, colour = bedrooms, group = bedrooms)) +
+  geom_point() +
+  geom_path() +
+  facet_wrap(~ property_type, ncol = 3, nrow = 1) +
+  labs(title = "Figure 1. Monthly Total Real Estate Sales (Count) in Brisbane",
+       subtitle = "First Covid-19 Case in Australia: 25 January 2020",
+       caption = "Between 2018-09-02 to 2020-07-16",
+       y = "Number of property sold", 
+       x = "Date (Year-Month)",
+       colour = "Number of Bedrooms:") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),
+        axis.text.x = element_text(angle = 90, vjust = 0.75),
+        axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
+        strip.text = element_text(size = 12),
+        plot.title = element_text(size = 16, face = "bold"),
+        plot.subtitle = element_text(size = 14)) +
+  geom_text_repel(aes(label = ifelse(YearMonth == "2019-07", paste0(bedrooms, " rooms"), "")), 
+                  size = 4) +
+  geom_vline(xintercept = "2020-01", color = "red", linetype = 2) +
+  geom_text(aes(x = "2020-01", 
+                y = 420,
+                label = "Covid Strike"),
+            size = 3,
+            colour = "red",
+            hjust = 0.5)
+
+```
+Insights:
+
+* For house, 3 and 4 rooms are the always the most popular ones but their sales (count) declined sharply after first Australia Covid-19 strikes, 1 room, 2 room, and 5 rooms house were also declined sharply.   
+* For townhouse, 3-room type are always the most popular one but their sales (count) also decline sharply after first Australia Covid-19 strikes The sales of other room types have been low to notice an effect of Covid-19.   
+* For Unit, 2 rooms are always the most popular one but their sales (count) also decline sharply after first Australia Covid-19 strikes The sales of other room types have also decreased but in a more gradual manner.   
+* Holistically, less people buying properties after first Covid-19 strikes in Australia.  
+
+### 7.2 Sales of Real Estate (Price) after Covid-19 strikes
+
+Now I want to check out the trend of prices of eacg property types.
+
+```{r, message=FALSE, warning=FALSE, fig.height= 8, fig.width=12}
+
+# set up df
+
+df7.2 <- bris.prop %>% 
+  mutate(YearMonth = format(date_sold, "%Y-%m"),
+         YearMonth = factor(YearMonth)) %>% 
+  relocate(YearMonth, .after = date_sold) %>% 
+  group_by(YearMonth, property_type, bedrooms) %>%
+  summarise(average = mean(price)) %>% 
+  mutate(property_type = fct_recode(property_type,
+                                    "House" = "house",
+                                    "Townhouse" = "townhouse",
+                                    "Unit" = "unit"))  
+
+# plot
+
+ggplot(df7.2, aes(x = YearMonth, y = average, colour = bedrooms, group = bedrooms)) +
+  geom_point() +
+  geom_path() +
+  facet_wrap(~ property_type, ncol = 3, nrow = 1) +
+  labs(title = "Figure 2. Monthly Average Real Estate Sales (Price) in Brisbane",
+       subtitle = "First Covid-19 Case in Australia: 25 January 2020",
+       caption = "Between 2018-09-02 to 2020-07-16",
+       y = "AUD (million)", 
+       x = "Date (Year-Month)",
+       colour = "Number of Bedrooms:") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),
+        axis.text.x = element_text(angle = 90, vjust = 0.75),
+        axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
+        strip.text = element_text(size = 12),
+        plot.title = element_text(size = 16, face = "bold"),
+        plot.subtitle = element_text(size = 14)) +
+  geom_text_repel(aes(label = ifelse(YearMonth == "2019-07", paste0(bedrooms, " rooms"), "")), 
+                  size = 4) +
+  geom_vline(xintercept = "2020-01", color = "red", linetype = 2) +
+  geom_text(aes(x = "2020-01", 
+                y = 420,
+                label = "Covid Strike"),
+            size = 3,
+            colour = "red",
+            hjust = 0.5) +
+  scale_y_continuous(label = function(x)paste0({x/1000000}, "M"))
+
+
+
+
+```
+
+There is an expensive average in 2019-01 masking the overall trends. Removing it would allows us to have a closer examination.
+
+
+```{r, message=FALSE, warning=FALSE, fig.height= 8, fig.width=12}
+ggplot(df7.2 %>% filter(average < 4000000), aes(x = YearMonth, y = average, colour = bedrooms, group = bedrooms)) +
+  geom_point() +
+  geom_path() +
+  facet_wrap(~ property_type, ncol = 3, nrow = 1) +
+  labs(title = "Figure 3. Monthly Average Real Estate Sales (Price) in Brisbane",
+       subtitle = "First Covid-19 Case in Australia: 25 January 2020",
+       caption = "Between 2018-09-02 to 2020-07-16",
+       y = "AUD (thousand)", 
+       x = "Date (Year-Month)",
+       colour = "Number of Bedrooms:") +
+  theme_bw() + 
+  theme(legend.position = "none",
+        plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),
+        axis.text.x = element_text(angle = 90, vjust = 0.75),
+        axis.title.y = element_text(margin = margin(0, 10, 0, 0)),
+        strip.text = element_text(size = 12),
+        plot.title = element_text(size = 16, face = "bold"),
+        plot.subtitle = element_text(size = 14)) +
+  geom_text_repel(aes(label = ifelse(YearMonth == "2019-10", paste0(bedrooms, " rooms"), "")), 
+                  size = 4) +
+  geom_vline(xintercept = "2020-01", color = "red", linetype = 2) +
+  geom_text(aes(x = "2020-01", 
+                y = 200000,
+                label = "Covid Strike"),
+            size = 3,
+            colour = "red",
+            hjust = 0.5) +
+  scale_y_continuous(label = function(x)paste0({x/1000}, "k"),
+                     lim = c(0, 1400000),
+                     breaks = seq(0, 1400000, 200000))
+```
+Insights: 
+
+* After Covid-19 strikes, the average prices of properties in figure 3 seems not as constant as figure 2, it is more fluctuate now.    
+  * Average price of 4-room house bounds back in July 2020.  
+  * Average price of 5-room house drops in July 2020.  
+* After Covid-19 strikes, the sales of 5-room townhouse stopped, but constant for 3-room and 2-room townhouse, and a sharp decline for 4-rooms townhouse. 
+* After Covid-19 strikes, the average prices of 1-room and 2-room units had been constant, but 3-room unit experienced fluctuation and its average price decreased between June 2020 and July 2021.
+
+
+
+### 7.3 Average prices of different type of properties in Brisbane.
+
+There there 3 type of properties (house, townhouse and unit) in the data set and 5 types of room category (1 room to 5 rooms). Following graph compares the overall average prices of these groups over the last 3 years **between 2018 and 2020**.
+
+
+```{r, message=FALSE, warning=FALSE, fig.width= 12, fig.height=7}
+
+df7.3 <- bris.prop %>% 
+  group_by(property_type, bedrooms) %>%
+  summarise(count = n(),
+            Average_price = round(mean(price)),
+            Average_price_lab = paste0("$ ", round(Average_price/1000), "k"))
+
+# set up lab
+
+df7.3 <- df7.3 %>% 
+  mutate(lab = paste(bedrooms, "\n", "(n =", count, ")"))
+
+
+# plot
+  
+ggplot(df7.3, aes(x = lab, y = Average_price, fill = property_type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~property_type, scale = "free_x") +
+  scale_y_continuous(label = function(x)paste0({x/1000000}, "M")) +
+  geom_text(aes(label = Average_price_lab),
+            vjust = -1,
+            size = 3) +
+  labs(title = "Figure 4. Averga price of different properties in Brisbane",
+       subtitle = "n = Sample size", 
+       caption = "Between 2018-09-02 to 2020-07-16",
+       x = "Number of room",
+       y = "Average price ($)") +
+  theme(legend.position = "none",
+        plot.title = element_text(size = 15, face = "bold"),
+        strip.text = element_text(size = 12)
+        ) 
+
+```
+
+This should only be quick guidance as locality and age of property may also affect property prices and these are not included in the table.  
+
+Insights: 
+
+* In general, townhouse and unit are cheaper than a house.   
+* The price of a property increases with increasing number of rooms.
+* For the young Brisbane family scenario, perhaps a 3-room townhouse is kind of the first ideal option, as there would be limited spaces of yard for their pets, and is more affordable than a house.    
+
+
+## 8 MAPPING
+
+This is a multi-layer map, feel free to spend a few minutes exploring each layer.
+
+```{r, warning=FALSE, message=FALSE}
+
+# create and transform df
+
+df8.1 <- bris.prop %>% 
+  group_by(suburb) %>% 
+  summarise(Average_price = mean(price))
+
+
+# Aligning data of the shapefile (myshape2) and the dataset (df8.1)
+
+df8.1 <- df8.1[order(match(df8.1$suburb, myshape2$QLD_LOCA_2)), ]
+
+# set up colour function
+
+price_cut <- c(0, 200000, 400000, 600000, 800000, 1000000, 1400000)
+pal <- colorBin(palette = "YlOrRd", bins = price_cut)
+
+
+# set up lab
+
+labs <-  paste0(df8.1$suburb, "</p>", "$", prettyNum(df8.1$Average_price, big.mark = ","))
+
+# Set year in factor type in the original data set
+
+bris.prop <- bris.prop %>% 
+  mutate(year = factor(year(date_sold)))
+
+
+# Create new variables for bis.prop data set- (color-range, map_lab, map_popup)
+
+bris.prop$colour_range <- cut(bris.prop$price,
+               breaks = c(0, 300000, 700000, 1000000, 4000000, 10000000),
+               labels = c("$0 - $300k", 
+                          "$300k - $700k", 
+                          "$700k - 1M",
+                          "$1M - $4M",
+                          "$4M - $10M"))  
+  
+
+bris.prop <- bris.prop %>% 
+  mutate(map_lab = paste0(property_type, " ($", price, ")", ", ", bedrooms, " rooms"),
+         map_popup = paste0("Property type: ", property_type, "<br>",
+                            "Price: $", prettyNum(price, big.mark = ","), "<br>",
+                            "Number of bedroom: ", bedrooms, "<br>",
+                            "Date sold: ", date_sold, "<br>",
+                            "Suburb: ", suburb))
+
+  
+df8.3_pal <- colorFactor(palette = c("yellow", "green", "orange", "red", "black"), domain = bris.prop$colour_range)
+
+#set up layers
+
+house_1rm <- bris.prop %>% filter(property_type == "house", bedrooms == "1")
+house_2rm <- bris.prop %>% filter(property_type == "house", bedrooms == "2")
+house_3rm <- bris.prop %>% filter(property_type == "house", bedrooms == "3")
+house_4rm <- bris.prop %>% filter(property_type == "house", bedrooms == "4")
+house_5rm <- bris.prop %>% filter(property_type == "house", bedrooms == "5")
+townhouse_1rm <- bris.prop %>% filter(property_type == "townhouse", bedrooms == "1")
+townhouse_2rm <- bris.prop %>% filter(property_type == "townhouse", bedrooms == "2")
+townhouse_3rm <- bris.prop %>% filter(property_type == "townhouse", bedrooms == "3")
+townhouse_4rm <- bris.prop %>% filter(property_type == "townhouse", bedrooms == "4")
+townhouse_5rm <- bris.prop %>% filter(property_type == "townhouse", bedrooms == "5")
+unit_1rm <- bris.prop %>% filter(property_type == "unit", bedrooms == "1")
+unit_2rm <- bris.prop %>% filter(property_type == "unit", bedrooms == "2")
+unit_3rm <- bris.prop %>% filter(property_type == "unit", bedrooms == "3")
+
+
+# plot
+
+leaflet(width = "100%") %>% 
+  addTiles(group = "Open Street Map") %>% 
+  addProviderTiles(providers$Esri.WorldImagery, group = "Esri World Imagery") %>% 
+  addProviderTiles(providers$Stamen.TonerLite, group = "Stamen Toner Lite") %>% 
+  setView(lat = -27.4705, lng = 153.0260, zoom = 11) %>% 
+  addLayersControl(baseGroups = c("Open Street Map",
+                                  "Esri World Imagery",
+                                  "Stamen Toner Lite"),
+                   overlayGroups = c("Overall Sales Cluster",
+                                     "Suburb Polygon - yellow",
+                                     "Suburb Polygon - blue",
+                                     "Suburb Polygon - Averaged",
+                                     "House - 1 room",
+                                     "House - 2 room",
+                                     "House - 3 room",
+                                     "House - 4 room",
+                                     "House - 5 room",
+                                     "Townhouse - 1 room",
+                                     "Townhouse - 2 room",
+                                     "Townhouse - 3 room",
+                                     "Townhouse - 4 room",
+                                     "Townhouse - 5 room",
+                                     "Unit - 1 room",
+                                     "Unit - 2 room",
+                                     "Unit - 3 room"),
+                   options = layersControlOptions(collapsed = F)) %>%
+  hideGroup(c("Suburb Polygon - yellow",
+              "House - 1 room",
+              "House - 2 room",
+              "House - 4 room",
+              "House - 5 room",
+              "Townhouse - 1 room",
+              "Townhouse - 2 room",
+              "Townhouse - 3 room",
+              "Townhouse - 4 room",
+              "Townhouse - 5 room",
+              "Unit - 1 room",
+              "Unit - 2 room",
+              "Unit - 3 room",
+              "Suburb Polygon - Averaged",
+              "Overall Sales Cluster")) %>% 
+   addLegend(position = "bottomleft",
+            opacity = 0.5,
+            pal = pal,
+            values = price_cut,
+            title = "Suburb Average property Price (Polygon)") %>% 
+   addLegend(position = "bottomleft",
+            opacity = 0.5,
+            values = bris.prop$colour_range,
+            pal = df8.3_pal,
+            title = "Property Prices (Points)") %>%
+  addPolygons(group = "Suburb Polygon - yellow",
+              data = myshape2,
+              weight = 1,
+              fillOpacity = 0.5,
+              opacity = 1,
+              smoothFactor = 0.5,  
+              color = ~"yellow",
+              highlight = highlightOptions(weight = 2,
+                                           fillOpacity = 0.3
+                                           ),
+              label = ~QLD_LOCA_2,
+              labelOptions = labelOptions(direction = "auto",
+                                          textsize = "15px"),
+              popup = myshape2$QLD_LOCA_2,
+              popupOptions = popupOptions(autoClose = FALSE, closeOnClick = FALSE)) %>% 
+  addPolygons(group = "Suburb Polygeon - blue",
+              data = myshape2,
+              weight = 1,
+              fillOpacity = 0.4,
+              opacity = 1,
+              smoothFactor = 0.5,
+              color = ~"blue",
+              highlight = highlightOptions(weight = 2,
+                                           fillOpacity = 0.2),
+              label = ~QLD_LOCA_2,
+              labelOptions = labelOptions(direction = "auto",
+                                          textsize = "15px"),
+              popup = myshape2$QLD_LOCA_2,
+              popupOptions = popupOptions(autoClose = FALSE, closeOnClick = FALSE)) %>% 
+  addCircleMarkers(group = "House - 1 room",
+                   data = house_1rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "House - 2 room",
+                   data = house_2rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "House - 3 room",
+                   data = house_3rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "House - 4 room",
+                   data = house_4rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "House - 5 room",
+                   data = house_5rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "Townhouse - 1 room",
+                   data = townhouse_1rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "Townhouse - 2 room",
+                   data = townhouse_2rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "Townhouse - 3 room",
+                   data = townhouse_3rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "Townhouse - 4 room",
+                   data = townhouse_4rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "Townhouse - 5 room",
+                   data = townhouse_5rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "Unit - 1 room",
+                   data = townhouse_1rm, 
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "Unit - 2 room",
+                   data = townhouse_2rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "Unit - 3 room",
+                   data = townhouse_3rm,
+                   lat = ~lat,
+                   lng = ~lon,
+                   radius = ~10,
+                   opacity = 1,
+                   weight = 1,
+                   label = ~map_lab,
+                   popup = ~map_popup,
+                   color = ~df8.3_pal(colour_range)) %>% 
+  addCircleMarkers(group = "Overall Sales Cluster",
+                   data = bris.prop,
+                   lat = ~ lat,
+                   lng = ~ lon,
+                   label = ~ paste0(suburb, 
+                                    " $", prettyNum(price, big.mark = ","), ", ",
+                                    paste0("sold in ", year), ", ",
+                                    property_type, ", ", 
+                                    paste0(bedrooms, " rooms")),
+                   weight = 1,         # thickness of circular
+                   radius = 10,          # size of circle
+                   clusterOptions = markerClusterOptions(),
+                   color = ~"Blue"
+                   ) %>% 
+  addPolygons(group = "Suburb Polygon - Averaged",
+              data = myshape2,
+              weight = 1.5,
+              color = "black",
+              fillOpacity = 0.7,
+              smoothFactor = 0.5,
+              dashArray = 3,
+              fillColor = pal(df8.1$Average_price),
+              highlight = highlightOptions(
+                fillOpacity = 0.6,
+                bringToFront = F), 
+              label = lapply(labs, HTML),
+              labelOptions = labelOptions(direction = "auto",
+                                          textsize = "15px")) 
+
+
+```
+
+### 8.1 Chropleth: Average price of property in each regions
+
+Obviously, locality and age of a property do matter affecting its price regardless what type it is or how many rooms it has. Unfortunately, there is no information about the age of each property sold in the data set, but there is locality data stored in the variable **suburb**.
+
+```{r}
+bris.prop
+```
+Instead of making a graph, a map will be more efficient for this geographical data.
+
+Following map is a **rough map** showing the average property price of each Brisbane suburb. It is an overall average that includes all types of properties.
+
+![](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\pic11.JPG)
+
+Well, this graph has a result that is out of my expectation. I was expecting more red regions towards the center of the map (central Brisbane). 
+
+It might be due to several reasons include that sample size collected in each region was different, distorted by extreme outliers (underprice or overprice property), affected by the type of the property, and the number of rooms each property has in a region. I was actually expecting regional information would somehow mask the price difference arisen from these factors.   
+
+Move on. 
+
+### 8.2 Overall yearly RE Sales in Brisbane (2018 - 2020)
+
+Map in this section use a cluster feature.
+
+* Clustering - meaning each point in the map is consisted of multiple points (count), the point will be extended when zoom in.   
+* Green, yellow, and red help categorising numbers of properties sold in each Brisbane region.   
+* Hover to each blue points that do not have the numeric value (count) to view details tagged with the property.  
+
+This map has less visual aids, but allowing user to view which regions have the most properties sold in each year. 
+
+![](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\pic12.JPG)
+
+
+This map may be helpful when comparing yearly sales (count) in different suburbs but not very helpful to solve the project objective for the young Brisbane family, jump to next section for better visual aids.
+
+
+### 8.3 My recommendation to the family
+
+Figure 5: City center has more expensive properties 
+
+![](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\pic6.JPG)
+
+
+* In general, properties become more expensive when closer to the city center (More red points).  
+* Property prices declined quickly when a property is located further away from the city center (More green points).   
+
+
+Figure 6: Suggesting to find a 3 room house in the south of St Lucia 
+![](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\pic7.JPG)
+
+* In the scenario, the parent are working near St Lucia.
+* Suggesting to find a home in the south of St Lucia for 3 reasons: 
+    * More affordable base on their current income.  
+    * More opportunities to find a great value house as there are more options in the region.  
+    * If finding a home in the northern part of St Lucia, the working parent can avoid passing through the city to their workplace to avoid heavy traffic during peak hours. Although moving to the south will only aid the traffic issue a little.  
+* In the southern suburbs, I suggest Kenmore, Jindalee, Oxley, Moorooka, and Salisbury, or to the further suburbs can include Inala, and Forest Lake, or undesirably Acacia Ridge or Sunnybank hills if there are not many options of desire in previous suburbs.
+
+
+Figure 7: Suggesting to find a 3 room townhouse in adjacent suburbs
+![](C:\Users\karho\Desktop\R and Stats\R for online presence\20210626_p5_Australia_property\ausproperty\pic8.JPG)
+
+* Recall: The data is showing properties that have been sold in the last 3 years, and I can see that the options for a 3-room townhouse is really limited, not many were avaiable.
+* However, I would suggest to put efforts to find one in adjacent suburbs include Taringa, Indooroopilly, or further to Yeronga, Moorooka, and Annerley, if the family keen to have a townhouse as their first home.  
+
+
+## 9 CONCLUSION
+
+* I suggest the family to consider buying a property in the period they mentioned (September 2020). The demand is affected by Covid-19 and is not that high at the moment in July-2020. There would be less competitors to compete with for a good value house. 
+
+* In general, the price of a house increases with increasing number of rooms. The increment can be 20% to 40% higher for each extra room added. It is an information for the family if they want to reconsider to have an extra room for guests that only stay temporarily.  
+
+* Property prices are generally more expensive near the center of the city. The family is working near St Lucia, I suggest to look for a property in adjacent suburbs located in the southern suburbs of St Lucia.  
+
+* Since the family would not want a unit because property spaces of a unit is limited, for example, smaller yard for their pets. They have also a kid and would want a room for visitors, I recommend the family to look for a 3-room townhouse or a 3-room house.   
+
+* Prices of townhouses in Brisbane are generally more affordable than a house。   
+  * A standard 3-room house generally costs about AUD 650k but it may cost only 500k if it is a townhouse.  
+  * A standard 4-room house generally costs about AUD 800k but it may cost only AUD 600k if it is a townhouse.   
+
+* The best suburbs to look for a **3-room townhouse** will be Taringa, Indooroopilly, or further away in Yeronga, Moorooka, and Annerley. 
+
+* However, there were not many townhouses on the market for sales in the last 3 years. I am expecting this would remain the same in the near future. I am hereby providing the best suburbs for a **3-room house** and categorising them into 3 classes:
+  * Shorter travel time to St Lucia where the workplace is: Kenmore, Jindalee, Oxley, Moorooka, and Salisbury
+  * Slightly longer travel time to St Lucia where the workplace is: INALA, and Forest Lake, or 
+  * Longer travel time to St Lucia where the wokplace is: Acacia Ridge, Sunnybank hills.
+  
+
+**Thank you for reading**
+
+
+## 10 LEGALITY
+
+This is a personal project created and designed for non-commercial use only. This project is only for educational and skill demonstration purposes. I will not hold any responsibility for any outcomes affected from using the results of this project. 
+
+All photos in this project, such as those as the thumbnail are just for demonstration only, they have no relation to the data set, the location where the data were collected, and the results of this analysis.
+
+
+## 11 Disclaimer
+
+Due to the upload file limit of RPub, I am not able to have interactive maps in all subsections of section 8. My apology if you think maps are better rather than having images in that section, because I think the same!
+
+## 12 REFERENCES
+
+HtAG Holding 2020, *AUS Real Estate Sales September 2018 to June 2020*, viewed 26 June 2021, https://www.kaggle.com/htagholdings/aus-real-estate-sales-march-2019-to-april-2020
+
+The Hon Greg Hunt 2020, *First confirmed case of novel coronavirus in Australia*, viewd 26 June 2021, https://www.health.gov.au/ministers/the-hon-greg-hunt-mp/media/first-confirmed-case-of-novel-coronavirus-in-australia
+
