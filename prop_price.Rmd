@@ -349,6 +349,7 @@ I searched on the internet and obtained a shapefile containing Queensland suburb
 Shape file imported.
 ```{r, warning=FALSE, message=FALSE}
 # Upload shape file of Queensland suburb boundary
+
 myshape <- readOGR("QLD_LOCALITY_POLYGON_shp/QLD_LOCALITY_POLYGON_shp.shp")
 
 ```
@@ -592,6 +593,11 @@ Insights:
 * In general, townhouse and unit are cheaper than a house.   
 * The price of a property increases with increasing number of rooms.
 * For the young Brisbane family scenario, perhaps a 3-room townhouse is kind of the first ideal option, as there would be limited spaces of yard for their pets, and is more affordable than a house.    
+
+```{r}
+bris.prop
+```
+
 
 
 ## 8 MAPPING
@@ -909,6 +915,32 @@ leaflet(width = "100%") %>%
 
 
 ```
+
+
+```{r}
+
+leaflet() %>% 
+  addTiles(group = "Open Street Map") %>% 
+  addProviderTiles(providers$Esri.WorldImagery, group = "Esri World Imagery") %>% 
+  addProviderTiles(providers$Stamen.TonerLite, group = "Stamen Toner Lite") %>% 
+  setView(lat = -27.4705, lng = 153.0260, zoom = 11) %>% 
+    addPolygons(group = "Suburb Polygon - Averaged",
+              data = myshape2,
+              weight = 1.5,
+              color = "black",
+              fillOpacity = 0.7,
+              smoothFactor = 0.5,
+              dashArray = 3,
+              fillColor = pal(df8.1$Average_price),
+              highlight = highlightOptions(
+                fillOpacity = 0.6,
+                bringToFront = F), 
+              label = lapply(labs, HTML),
+              labelOptions = labelOptions(direction = "auto",
+                                          textsize = "15px")) 
+
+```
+
 
 ### 8.1 Chropleth: Average price of property in each regions
 
